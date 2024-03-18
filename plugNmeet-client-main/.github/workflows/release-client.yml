@@ -1,0 +1,38 @@
+name: Build and release client
+on:
+  release:
+    types: [ published ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+      - name: Build project
+        run: |
+          npm install
+          npm run build
+          
+          ## save latest version tag
+          TAG_NAME=$(curl -sL https://api.github.com/repos/mynaparrot/plugNmeet-client/releases/latest | jq -r ".tag_name")
+          echo $TAG_NAME > dist/version.txt
+          
+          mkdir -p tmp/client
+          rsync -ar LICENSE dist tmp/client/
+          cd tmp
+          zip -X -r client.zip client
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: upload client
+          path: tmp/client.zip
+      - name: Upload to release
+        uses: JasonEtco/upload-to-release@master
+        with:
+          args: tmp/client.zip application/zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
